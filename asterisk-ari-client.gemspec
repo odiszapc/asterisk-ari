@@ -29,6 +29,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "activesupport", "~> 7.0"
 
   spec.add_dependency "multi_json"
-  spec.add_dependency "websocket-client-simple", "~> 0.2"
+  spec.add_dependency "websocket-client-simple", "~> 0.5"
   spec.add_dependency "event_emitter", "~> 0.2"
 end
