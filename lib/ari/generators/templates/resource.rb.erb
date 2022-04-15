@@ -72,6 +72,8 @@ module Ari
       <%- end -%>
       <%- elsif operation.return_klass -%>
       <%= operation.return_klass %>.new(response.merge(client: options[:client]))
+      <%- else -%>
+      return response
       <%- end -%>
     <%- if operation.http_method == 'DELETE' -%>
     rescue Ari::RequestError => e

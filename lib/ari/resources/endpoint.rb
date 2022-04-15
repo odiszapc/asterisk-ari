@@ -43,6 +43,7 @@ module Ari
       raise ArgumentError.new("Parameter from must be passed in options hash.") unless options[:from]
       path = '/endpoints/sendMessage'
       response = client(options).put(path, options)
+      return response
     end
     class << self; alias_method :sendMessage, :send_message; end
 
@@ -108,6 +109,7 @@ module Ari
       raise ArgumentError.new("Parameter from must be passed in options hash.") unless options[:from]
       path = '/endpoints/%{tech}/%{resource}/sendMessage' % options
       response = client(options).put(path, options)
+      return response
     end
     class << self; alias_method :sendMessageToEndpoint, :send_message_to_endpoint; end
 

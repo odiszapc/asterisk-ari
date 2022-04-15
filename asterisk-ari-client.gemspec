@@ -24,9 +24,9 @@ Gem::Specification.new do |spec|
 
   spec.add_development_dependency "minitest", "~> 5.4"
   spec.add_development_dependency "vcr", "~> 2.9"
-  spec.add_development_dependency "webmock", "~> 1.19"
+  spec.add_development_dependency "webmock", "~> 3.14"
 
-  spec.add_development_dependency "activesupport", "~> 4.1"
+  spec.add_development_dependency "activesupport", "~> 7.0"
 
   spec.add_dependency "multi_json"
   spec.add_dependency "websocket-client-simple", "~> 0.2"

@@ -63,6 +63,7 @@ module Ari
       raise ArgumentError.new("Parameter newMessages must be passed in options hash.") unless options[:newMessages]
       path = '/mailboxes/%{mailboxName}' % options
       response = client(options).put(path, options)
+      return response
     end
 
     def update(options = {})
@@ -82,6 +83,7 @@ module Ari
       raise ArgumentError.new("Parameter mailboxName must be passed in options hash.") unless options[:mailboxName]
       path = '/mailboxes/%{mailboxName}' % options
       response = client(options).delete(path, options)
+      return response
     rescue Ari::RequestError => e
       raise unless e.code == '404'
     end

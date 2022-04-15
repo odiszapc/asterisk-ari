@@ -12,7 +12,7 @@
 module Ari
   class Channel < Resource
 
-    attr_reader :id, :name, :state, :caller, :connected, :accountcode, :dialplan, :creationtime, :language
+    attr_reader :id, :name, :state, :caller, :connected, :accountcode, :dialplan, :creationtime, :language, :channelvars
 
     def caller=(val)
       @caller ||= CallerID.new(val)
@@ -28,6 +28,10 @@ module Ari
 
     def creationtime=(val)
       @creationtime ||= Time.parse(val)
+    end
+
+    def channelvars=(val)
+      @channelvars ||= object.new(val)
     end
 
 
@@ -62,10 +66,35 @@ module Ari
     # channelId  - The unique id to assign the channel on creation.
     # otherChannelId  - The unique id to assign the second channel when using local channels.
     # originator  - The unique id of the channel which is originating this one.
+    # formats  - The format name capability list to use if originator is not specified. Ex. "ulaw,slin16".  Format names can be found with "core show codecs".
     #
     def self.originate(options = {})
       raise ArgumentError.new("Parameter endpoint must be passed in options hash.") unless options[:endpoint]
       path = '/channels'
+      response = client(options).post(path, options)
+      Channel.new(response.merge(client: options[:client]))
+    end
+
+    # POST /channels/create
+    #
+    # Create a channel and place it in a Stasis app, but do not dial the channel yet.
+    #
+    #
+    # Parameters:
+    #
+    # endpoint (required) - Endpoint for channel communication
+    # app (required) - Stasis Application to place channel into
+    # appArgs  - The application arguments to pass to the Stasis application provided by 'app'. Mutually exclusive with 'context', 'extension', 'priority', and 'label'.
+    # channelId  - The unique id to assign the channel on creation.
+    # otherChannelId  - The unique id to assign the second channel when using local channels.
+    # originator  - Unique ID of the calling channel
+    # formats  - The format name capability list to use if originator is not specified. Ex. "ulaw,slin16".  Format names can be found with "core show codecs".
+    # variables  - The "variables" key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { "endpoint": "SIP/Alice", "variables": { "CALLERID(name)": "Alice" } }
+    #
+    def self.create(options = {})
+      raise ArgumentError.new("Parameter endpoint must be passed in options hash.") unless options[:endpoint]
+      raise ArgumentError.new("Parameter app must be passed in options hash.") unless options[:app]
+      path = '/channels/create'
       response = client(options).post(path, options)
       Channel.new(response.merge(client: options[:client]))
     end
@@ -110,6 +139,7 @@ module Ari
     # variables  - The "variables" key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { "endpoint": "SIP/Alice", "variables": { "CALLERID(name)": "Alice" } }
     # otherChannelId  - The unique id to assign the second channel when using local channels.
     # originator  - The unique id of the channel which is originating this one.
+    # formats  - The format name capability list to use if originator is not specified. Ex. "ulaw,slin16".  Format names can be found with "core show codecs".
     #
     def self.originate_with_id(options = {})
       raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
@@ -132,12 +162,14 @@ module Ari
     # Parameters:
     #
     # channelId (required) - Channel's id
-    # reason  - Reason for hanging up the channel
+    # reason_code  - The reason code for hanging up the channel for detail use. Mutually exclusive with 'reason'. See detail hangup codes at here. https://wiki.asterisk.org/wiki/display/AST/Hangup+Cause+Mappings
+    # reason  - Reason for hanging up the channel for simple use. Mutually exclusive with 'reason_code'.
     #
     def self.hangup(options = {})
       raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
       path = '/channels/%{channelId}' % options
       response = client(options).delete(path, options)
+      return response
     rescue Ari::RequestError => e
       raise unless e.code == '404'
     end
@@ -163,11 +195,35 @@ module Ari
       raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
       path = '/channels/%{channelId}/continue' % options
       response = client(options).post(path, options)
+      return response
     end
     class << self; alias_method :continueInDialplan, :continue_in_dialplan; end
 
     def continue_in_dialplan(options = {})
       self.class.continue_in_dialplan(options.merge(channelId: self.id, client: @client))
+    end
+
+    # POST /channels/%{channelId}/move
+    #
+    # Move the channel from one Stasis application to another.
+    #
+    #
+    # Parameters:
+    #
+    # channelId (required) - Channel's id
+    # app (required) - The channel will be passed to this Stasis application.
+    # appArgs  - The application arguments to pass to the Stasis application provided by 'app'.
+    #
+    def self.move(options = {})
+      raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
+      raise ArgumentError.new("Parameter app must be passed in options hash.") unless options[:app]
+      path = '/channels/%{channelId}/move' % options
+      response = client(options).post(path, options)
+      return response
+    end
+
+    def move(options = {})
+      self.class.move(options.merge(channelId: self.id, client: @client))
     end
 
     # POST /channels/%{channelId}/redirect
@@ -185,6 +241,7 @@ module Ari
       raise ArgumentError.new("Parameter endpoint must be passed in options hash.") unless options[:endpoint]
       path = '/channels/%{channelId}/redirect' % options
       response = client(options).post(path, options)
+      return response
     end
 
     def redirect(options = {})
@@ -204,6 +261,7 @@ module Ari
       raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
       path = '/channels/%{channelId}/answer' % options
       response = client(options).post(path, options)
+      return response
     end
 
     def answer(options = {})
@@ -223,6 +281,7 @@ module Ari
       raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
       path = '/channels/%{channelId}/ring' % options
       response = client(options).post(path, options)
+      return response
     end
 
     def ring(options = {})
@@ -242,6 +301,7 @@ module Ari
       raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
       path = '/channels/%{channelId}/ring' % options
       response = client(options).delete(path, options)
+      return response
     rescue Ari::RequestError => e
       raise unless e.code == '404'
     end
@@ -269,6 +329,7 @@ module Ari
       raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
       path = '/channels/%{channelId}/dtmf' % options
       response = client(options).post(path, options)
+      return response
     end
     class << self; alias_method :sendDTMF, :send_dtmf; end
 
@@ -290,6 +351,7 @@ module Ari
       raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
       path = '/channels/%{channelId}/mute' % options
       response = client(options).post(path, options)
+      return response
     end
 
     def mute(options = {})
@@ -310,6 +372,7 @@ module Ari
       raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
       path = '/channels/%{channelId}/mute' % options
       response = client(options).delete(path, options)
+      return response
     rescue Ari::RequestError => e
       raise unless e.code == '404'
     end
@@ -331,6 +394,7 @@ module Ari
       raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
       path = '/channels/%{channelId}/hold' % options
       response = client(options).post(path, options)
+      return response
     end
 
     def hold(options = {})
@@ -350,6 +414,7 @@ module Ari
       raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
       path = '/channels/%{channelId}/hold' % options
       response = client(options).delete(path, options)
+      return response
     rescue Ari::RequestError => e
       raise unless e.code == '404'
     end
@@ -372,6 +437,7 @@ module Ari
       raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
       path = '/channels/%{channelId}/moh' % options
       response = client(options).post(path, options)
+      return response
     end
     class << self; alias_method :startMoh, :start_moh; end
 
@@ -392,6 +458,7 @@ module Ari
       raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
       path = '/channels/%{channelId}/moh' % options
       response = client(options).delete(path, options)
+      return response
     rescue Ari::RequestError => e
       raise unless e.code == '404'
     end
@@ -414,6 +481,7 @@ module Ari
       raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
       path = '/channels/%{channelId}/silence' % options
       response = client(options).post(path, options)
+      return response
     end
     class << self; alias_method :startSilence, :start_silence; end
 
@@ -434,6 +502,7 @@ module Ari
       raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
       path = '/channels/%{channelId}/silence' % options
       response = client(options).delete(path, options)
+      return response
     rescue Ari::RequestError => e
       raise unless e.code == '404'
     end
@@ -451,9 +520,9 @@ module Ari
     # Parameters:
     #
     # channelId (required) - Channel's id
-    # media (required) - Media's URI to play.
+    # media (required) - Media URIs to play.
     # lang  - For sounds, selects language for sound.
-    # offsetms  - Number of media to skip before playing.
+    # offsetms  - Number of milliseconds to skip before playing. Only applies to the first URI if multiple media URIs are specified.
     # skipms  - Number of milliseconds to skip for forward/reverse operations.
     # playbackId  - Playback ID.
     #
@@ -478,9 +547,9 @@ module Ari
     #
     # channelId (required) - Channel's id
     # playbackId (required) - Playback ID.
-    # media (required) - Media's URI to play.
+    # media (required) - Media URIs to play.
     # lang  - For sounds, selects language for sound.
-    # offsetms  - Number of media to skip before playing.
+    # offsetms  - Number of milliseconds to skip before playing. Only applies to the first URI if multiple media URIs are specified.
     # skipms  - Number of milliseconds to skip for forward/reverse operations.
     #
     def self.play_with_id(options = {})
@@ -565,6 +634,7 @@ module Ari
       raise ArgumentError.new("Parameter variable must be passed in options hash.") unless options[:variable]
       path = '/channels/%{channelId}/variable' % options
       response = client(options).post(path, options)
+      return response
     end
     class << self; alias_method :setChannelVar, :set_channel_var; end
 
@@ -626,6 +696,76 @@ module Ari
     def snoop_channel_with_id(options = {})
       self.class.snoop_channel_with_id(options.merge(channelId: self.id, client: @client))
     end
+
+    # POST /channels/%{channelId}/dial
+    #
+    # Dial a channel
+    #
+    #
+    # Parameters:
+    #
+    # channelId (required) - Channel's id
+    # caller  - Channel ID of caller
+    # timeout  - Dial timeout
+    #
+    def self.dial(options = {})
+      raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
+      path = '/channels/%{channelId}/dial' % options
+      response = client(options).post(path, options)
+      return response
+    end
+
+    def dial(options = {})
+      self.class.dial(options.merge(channelId: self.id, client: @client))
+    end
+
+    # GET /channels/%{channelId}/rtp_statistics
+    #
+    # Get RTP statistics information for RTP on a channel
+    #
+    #
+    # Parameters:
+    #
+    # channelId (required) - Channel's id
+    #
+    def self.rtpstatistics(options = {})
+      raise ArgumentError.new("Parameter channelId must be passed in options hash.") unless options[:channelId]
+      path = '/channels/%{channelId}/rtp_statistics' % options
+      response = client(options).get(path, options)
+      RTPstat.new(response.merge(client: options[:client]))
+    end
+
+    def rtpstatistics(options = {})
+      self.class.rtpstatistics(options.merge(channelId: self.id, client: @client))
+    end
+
+    # POST /channels/externalMedia
+    #
+    # Create a channel to an External Media source/sink.
+    #
+    #
+    # Parameters:
+    #
+    # channelId  - The unique id to assign the channel on creation.
+    # app (required) - Stasis Application to place channel into
+    # variables  - The "variables" key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { "endpoint": "SIP/Alice", "variables": { "CALLERID(name)": "Alice" } }
+    # external_host (required) - Hostname/ip:port of external host
+    # encapsulation  - Payload encapsulation protocol
+    # transport  - Transport protocol
+    # connection_type  - Connection type (client/server)
+    # format (required) - Format to encode audio in
+    # direction  - External media direction
+    # data  - An arbitrary data field
+    #
+    def self.external_media(options = {})
+      raise ArgumentError.new("Parameter app must be passed in options hash.") unless options[:app]
+      raise ArgumentError.new("Parameter external_host must be passed in options hash.") unless options[:external_host]
+      raise ArgumentError.new("Parameter format must be passed in options hash.") unless options[:format]
+      path = '/channels/externalMedia'
+      response = client(options).post(path, options)
+      Channel.new(response.merge(client: options[:client]))
+    end
+    class << self; alias_method :externalMedia, :external_media; end
 
 
   end

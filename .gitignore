@@ -67,3 +67,6 @@ config/secrets.yml
 
 pkg/*
 Gemfile.lock
+
+# IDE
+.idea
